@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import de.stefan.nasbackup.data.CredentialStore
+import de.stefan.nasbackup.data.FolderPrefs
 import de.stefan.nasbackup.data.UploadLog
 import de.stefan.nasbackup.work.SyncScheduler
 import de.stefan.nasbackup.work.UploadWorker
@@ -61,6 +62,8 @@ fun StatusScreen(
         )
     }
     var uploadedCount by remember { mutableIntStateOf(UploadLog.count(ctx)) }
+    var selectedFolders by remember { mutableStateOf(FolderPrefs.selected(ctx)) }
+    var pickingFolders by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -78,6 +81,14 @@ fun StatusScreen(
     val manualWork by WorkManager.getInstance(ctx)
         .getWorkInfosForUniqueWorkLiveData(SyncScheduler.MANUAL_WORK)
         .observeAsState()
+
+    if (pickingFolders) {
+        FolderPickerScreen(onDone = {
+            selectedFolders = FolderPrefs.selected(ctx)
+            pickingFolders = false
+        })
+        return
+    }
 
     val info: WorkInfo? = manualWork?.firstOrNull()
     val running = info?.state == WorkInfo.State.RUNNING
@@ -119,6 +130,15 @@ fun StatusScreen(
         }
 
         Text("Bereits gesichert: $uploadedCount Dateien")
+
+        Text(
+            if (selectedFolders.isEmpty()) "Ordner: alle"
+            else "Ordner: ${selectedFolders.size} ausgewählt (${selectedFolders.joinToString(", ")})"
+        )
+        OutlinedButton(
+            onClick = { pickingFolders = true },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Ordner auswählen") }
 
         when (info?.state) {
             WorkInfo.State.RUNNING -> {
