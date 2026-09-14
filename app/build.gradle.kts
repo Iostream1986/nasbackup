@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Release-Signierung kommt aus local.properties, nicht aus dem Repo.
+// Ohne diese Werte (z.B. bei einem frischen Checkout) bleibt Release
+// unsigniert, statt den Build kaputt zu machen.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val releaseStoreFile = localProps.getProperty("RELEASE_STORE_FILE")
+val hasReleaseSigning = releaseStoreFile != null
 
 android {
     namespace = "de.stefan.nasbackup"
@@ -12,13 +24,27 @@ android {
         applicationId = "de.stefan.nasbackup"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
