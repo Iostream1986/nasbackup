@@ -1,0 +1,16 @@
+host: 0.0.0.0
+port: 8080
+
+provider_mapping:
+  "/": "/home/markus/webdav/data"
+
+htpasswd_dc:
+  htpasswd_file: /home/markus/webdav/users.htpasswd
+
+http_authenticator:
+  domain_controller: wsgidav.dc.htpasswd_dc.HtpasswdDomainController
+  accept_basic: true
+  accept_digest: false
+  default_to_digest: false
+
+verbose: 3

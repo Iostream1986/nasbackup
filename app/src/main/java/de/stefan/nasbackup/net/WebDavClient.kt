@@ -1,12 +1,15 @@
 package de.stefan.nasbackup.net
 
 import okhttp3.Credentials
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import okio.source
+import org.json.JSONObject
 import java.io.InputStream
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
@@ -59,6 +62,31 @@ class WebDavClient(
                 207, 200 -> Unit
                 401 -> throw Exception("Benutzername oder Passwort falsch")
                 404 -> throw Exception("Pfad auf dem Server nicht gefunden")
+                else -> throw Exception("Server antwortet mit ${response.code}")
+            }
+        }
+    }
+
+    /**
+     * Aendert das eigene Passwort. Der Server prueft dafuer das aktuell in
+     * diesem Client hinterlegte (alte) Passwort per Basic Auth, siehe
+     * server/serve.py -> /_password.
+     */
+    fun changePassword(newPassword: String): Result<Unit> = runCatching {
+        val json = JSONObject().put("new_password", newPassword).toString()
+        val request = Request.Builder()
+            .url("$base/_password")
+            .header("Authorization", auth)
+            .post(json.toRequestBody("application/json".toMediaType()))
+            .build()
+        http.newCall(request).execute().use { response ->
+            when (response.code) {
+                200 -> Unit
+                401 -> throw Exception("Aktuelles Passwort falsch")
+                400 -> throw Exception(
+                    response.body?.string()?.takeIf { it.isNotBlank() }
+                        ?: "Neues Passwort ungueltig"
+                )
                 else -> throw Exception("Server antwortet mit ${response.code}")
             }
         }

@@ -64,6 +64,7 @@ fun StatusScreen(
     var uploadedCount by remember { mutableIntStateOf(UploadLog.count(ctx)) }
     var selectedFolders by remember { mutableStateOf(FolderPrefs.selected(ctx)) }
     var pickingFolders by remember { mutableStateOf(false) }
+    var changingPassword by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -87,6 +88,11 @@ fun StatusScreen(
             selectedFolders = FolderPrefs.selected(ctx)
             pickingFolders = false
         })
+        return
+    }
+
+    if (changingPassword) {
+        ChangePasswordScreen(creds = creds, onDone = { changingPassword = false })
         return
     }
 
@@ -182,6 +188,11 @@ fun StatusScreen(
             onClick = { SyncScheduler.runNow(ctx) },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Jetzt sichern") }
+
+        OutlinedButton(
+            onClick = { changingPassword = true },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Passwort ändern") }
 
         OutlinedButton(
             onClick = {
