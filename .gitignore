@@ -8,3 +8,6 @@ captures/
 .externalNativeBuild
 .cxx
 .kotlin/
+
+# Enthaelt Testserver-Zugangsdaten, nicht fuers Repo (siehe CLAUDE.md selbst)
+CLAUDE.md

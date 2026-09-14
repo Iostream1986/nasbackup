@@ -119,5 +119,7 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
         if (busy) {
             CircularProgressIndicator()
         }
+
+        PoweredByScheidl()
     }
 }

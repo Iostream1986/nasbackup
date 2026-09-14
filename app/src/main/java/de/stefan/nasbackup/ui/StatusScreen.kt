@@ -190,5 +190,7 @@ fun StatusScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Abmelden") }
+
+        PoweredByScheidl()
     }
 }
