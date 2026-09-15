@@ -82,6 +82,9 @@ fun StatusScreen(
     val manualWork by WorkManager.getInstance(ctx)
         .getWorkInfosForUniqueWorkLiveData(SyncScheduler.MANUAL_WORK)
         .observeAsState()
+    val periodicWork by WorkManager.getInstance(ctx)
+        .getWorkInfosForUniqueWorkLiveData(SyncScheduler.PERIODIC_WORK)
+        .observeAsState()
 
     if (pickingFolders) {
         FolderPickerScreen(onDone = {
@@ -97,7 +100,8 @@ fun StatusScreen(
     }
 
     val info: WorkInfo? = manualWork?.firstOrNull()
-    val running = info?.state == WorkInfo.State.RUNNING
+    val periodicInfo: WorkInfo? = periodicWork?.firstOrNull()
+    val running = info?.state == WorkInfo.State.RUNNING || periodicInfo?.state == WorkInfo.State.RUNNING
 
     LaunchedEffect(info?.state) {
         if (info?.state?.isFinished == true) {
@@ -138,8 +142,10 @@ fun StatusScreen(
         Text("Bereits gesichert: $uploadedCount Dateien")
 
         Text(
-            if (selectedFolders.isEmpty()) "Ordner: alle"
-            else "Ordner: ${selectedFolders.size} ausgewählt (${selectedFolders.joinToString(", ")})"
+            if (selectedFolders.isEmpty()) "Ordner: keine ausgewählt – es wird nichts gesichert"
+            else "Ordner: ${selectedFolders.size} ausgewählt (${selectedFolders.joinToString(", ")})",
+            color = if (selectedFolders.isEmpty()) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface
         )
         OutlinedButton(
             onClick = { pickingFolders = true },
@@ -188,6 +194,13 @@ fun StatusScreen(
             onClick = { SyncScheduler.runNow(ctx) },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Jetzt sichern") }
+
+        if (running) {
+            OutlinedButton(
+                onClick = { SyncScheduler.cancelRunning(ctx) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Abbrechen") }
+        }
 
         OutlinedButton(
             onClick = { changingPassword = true },

@@ -53,4 +53,15 @@ object SyncScheduler {
         WorkManager.getInstance(ctx).cancelUniqueWork(PERIODIC_WORK)
         WorkManager.getInstance(ctx).cancelUniqueWork(MANUAL_WORK)
     }
+
+    /**
+     * Der Knopf "Abbrechen". Bricht einen laufenden Sync sofort ab (egal ob
+     * per 6-Stunden-Takt oder "Jetzt sichern" gestartet), plant den
+     * 6-Stunden-Takt danach aber sofort neu -- anders als cancelAll() also
+     * kein Abmelden, der Zeitplan bleibt aktiv.
+     */
+    fun cancelRunning(ctx: Context) {
+        cancelAll(ctx)
+        schedulePeriodic(ctx)
+    }
 }

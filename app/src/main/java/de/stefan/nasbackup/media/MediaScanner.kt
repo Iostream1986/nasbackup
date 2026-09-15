@@ -27,7 +27,7 @@ object MediaScanner {
         val result = mutableListOf<MediaItem>()
         result += query(ctx, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "img")
         result += query(ctx, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "vid")
-        val filtered = if (selected.isEmpty()) result else result.filter { it.bucket in selected }
+        val filtered = result.filter { it.bucket in selected }
         return filtered.sortedBy { it.dateAddedSeconds }
     }
 

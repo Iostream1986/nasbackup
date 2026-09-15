@@ -48,7 +48,7 @@ fun FolderPickerScreen(onDone: () -> Unit) {
     ) {
         Text("Ordner auswählen", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Leer = alle Ordner werden gesichert. Sonst nur die angehakten.",
+            "Nur angehakte Ordner werden gesichert. Leer = nichts wird gesichert.",
             style = MaterialTheme.typography.bodySmall
         )
 
@@ -57,6 +57,19 @@ fun FolderPickerScreen(onDone: () -> Unit) {
         } else if (buckets.isEmpty()) {
             Text("Keine Fotos oder Videos auf dem Gerät gefunden.")
         } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = buckets.isNotEmpty() && selected.containsAll(buckets),
+                    onCheckedChange = { checked ->
+                        selected = if (checked) buckets.toSet() else emptySet()
+                    }
+                )
+                Text("Alle")
+            }
+
             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 items(buckets) { bucket ->
                     Row(

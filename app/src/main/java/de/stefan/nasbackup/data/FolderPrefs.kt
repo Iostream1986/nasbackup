@@ -3,8 +3,10 @@ package de.stefan.nasbackup.data
 import android.content.Context
 
 /**
- * Welche Medienordner gesichert werden sollen. Leere Auswahl heisst:
- * alle Ordner. Nur fuers Testen gedacht, deshalb unverschluesselte Prefs.
+ * Welche Medienordner gesichert werden sollen. Leere Auswahl heisst
+ * bewusst: keine Ordner, es wird nichts gesichert, bis aktiv welche
+ * angehakt werden. Nur fuers Testen gedacht, deshalb unverschluesselte
+ * Prefs.
  */
 object FolderPrefs {
 
