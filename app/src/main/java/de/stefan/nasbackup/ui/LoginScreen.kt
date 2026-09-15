@@ -36,7 +36,7 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var url by remember { mutableStateOf("http://192.168.178.47:8080") }
+    var url by remember { mutableStateOf("https://nas.scheidl-nas.org") }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -91,6 +91,10 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
         Button(
             enabled = !busy && url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
             onClick = {
+                if (user.contains("/")) {
+                    error = "E-Mail-Adresse darf kein \"/\" enthalten"
+                    return@Button
+                }
                 busy = true
                 error = null
                 scope.launch {

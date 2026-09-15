@@ -17,8 +17,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Minimaler WebDAV-Client. Nur vier Methoden werden gebraucht:
  *
- *   PROPFIND  - Anmeldung pruefen
- *   MKCOL     - Ordner anlegen
+ *   MKCOL     - Ordner anlegen (auch fuer den Login-Check genutzt, siehe unten)
  *   HEAD      - pruefen ob eine Datei schon existiert
  *   PUT       - hochladen
  */
@@ -28,6 +27,7 @@ class WebDavClient(
     password: String
 ) {
     private val base = baseUrl.trimEnd('/')
+    private val userName = user
     private val auth = Credentials.basic(user, password)
 
     private val http = OkHttpClient.Builder()
@@ -52,16 +52,21 @@ class WebDavClient(
         .url(url(path))
         .header("Authorization", auth)
 
+    /**
+     * Prueft die Anmeldung per MKCOL auf den eigenen Nutzerordner (statt
+     * PROPFIND auf "/"): Der Server isoliert Nutzer so, dass der reine
+     * Root-Zugriff fuer niemanden erlaubt ist (siehe server/serve.py,
+     * IsolatingHtpasswdDC). MKCOL auf den eigenen Ordner ist idempotent
+     * (405 = existiert schon) und legt ihn beim allerersten Login gleich an.
+     */
     fun checkLogin(): Result<Unit> = runCatching {
-        val request = builder("/")
-            .method("PROPFIND", null)
-            .header("Depth", "0")
+        val request = builder(userName)
+            .method("MKCOL", null)
             .build()
         http.newCall(request).execute().use { response ->
             when (response.code) {
-                207, 200 -> Unit
+                201, 405, 301 -> Unit
                 401 -> throw Exception("Benutzername oder Passwort falsch")
-                404 -> throw Exception("Pfad auf dem Server nicht gefunden")
                 else -> throw Exception("Server antwortet mit ${response.code}")
             }
         }

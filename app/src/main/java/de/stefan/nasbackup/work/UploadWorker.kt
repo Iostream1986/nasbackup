@@ -77,7 +77,7 @@ class UploadWorker(
         pending.forEachIndexed { index, item ->
             if (isStopped) return@withContext Result.retry()
 
-            val folder = "DCIM/" + monthFormat.format(Date(item.dateAddedSeconds * 1000L))
+            val folder = "${creds.user}/DCIM/" + monthFormat.format(Date(item.dateAddedSeconds * 1000L))
             val remotePath = "$folder/${item.displayName}"
 
             val ok = runCatching {

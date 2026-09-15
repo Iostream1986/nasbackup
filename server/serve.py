@@ -20,6 +20,7 @@ import base64
 import copy
 import json
 import os
+import posixpath
 
 import yaml
 from passlib.apache import HtpasswdFile
@@ -49,15 +50,38 @@ class ReloadingHtpasswdDC(HtpasswdDomainController):
         return super().basic_auth_user(realm, user_name, password, environ)
 
 
+class IsolatingHtpasswdDC(ReloadingHtpasswdDC):
+    """
+    Nutzer-Isolation: Der erste Pfadabschnitt der URL muss dem eingeloggten
+    Benutzernamen entsprechen (z.B. "/stefan@example.de/DCIM/..."). Damit
+    ist der Ordnername gleichzeitig die Zugriffsgrenze -- kein separates
+    Freigabe-Mapping pro Nutzer noetig, kein Neustart bei neuen Accounts.
+
+    Ueberschreibt get_domain_realm() statt die vom Basiscontroller genutzte
+    _calc_realm_from_path_provider() zu verwenden: letztere haengt am festen
+    provider_mapping-Share (hier immer "/"), nicht am tatsaechlichen Pfad.
+    """
+
+    def get_domain_realm(self, path_info, environ):
+        normalized = posixpath.normpath(path_info or "/")
+        segments = normalized.strip("/").split("/", 1)
+        return segments[0]
+
+    def basic_auth_user(self, realm, user_name, password, environ):
+        if user_name != realm:
+            return False
+        return super().basic_auth_user(realm, user_name, password, environ)
+
+
 def build_config() -> dict:
     config = copy.deepcopy(DEFAULT_CONFIG)
     with open(CONFIG_FILE, encoding="utf-8") as f:
         file_opts = yaml.safe_load(f)
     util.deep_update(config, file_opts)
-    # Immer unsere neu-ladende Variante nutzen, unabhaengig davon, was in
+    # Immer unsere Isolations-Variante nutzen, unabhaengig davon, was in
     # der YAML als domain_controller steht (die dient dort nur als Fallback-
     # Dokumentation, falls wsgidav mal ohne dieses Skript direkt gestartet wird).
-    config["http_authenticator"]["domain_controller"] = ReloadingHtpasswdDC
+    config["http_authenticator"]["domain_controller"] = IsolatingHtpasswdDC
     return config
 
 
