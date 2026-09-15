@@ -65,6 +65,7 @@ fun StatusScreen(
     var selectedFolders by remember { mutableStateOf(FolderPrefs.selected(ctx)) }
     var pickingFolders by remember { mutableStateOf(false) }
     var changingPassword by remember { mutableStateOf(false) }
+    var showingGallery by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -96,6 +97,11 @@ fun StatusScreen(
 
     if (changingPassword) {
         ChangePasswordScreen(creds = creds, onDone = { changingPassword = false })
+        return
+    }
+
+    if (showingGallery) {
+        GalleryScreen(onDone = { showingGallery = false })
         return
     }
 
@@ -140,6 +146,10 @@ fun StatusScreen(
         }
 
         Text("Bereits gesichert: $uploadedCount Dateien")
+        OutlinedButton(
+            onClick = { showingGallery = true },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Galerie ansehen") }
 
         Text(
             if (selectedFolders.isEmpty()) "Ordner: keine ausgewählt – es wird nichts gesichert"
