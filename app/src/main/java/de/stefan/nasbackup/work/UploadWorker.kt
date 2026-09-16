@@ -6,10 +6,14 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import de.stefan.nasbackup.NasBackupApp
 import de.stefan.nasbackup.data.CredentialStore
+import de.stefan.nasbackup.data.DeviceId
+import de.stefan.nasbackup.data.PathSegment
 import de.stefan.nasbackup.data.UploadLog
 import de.stefan.nasbackup.media.MediaScanner
 import de.stefan.nasbackup.net.WebDavClient
@@ -47,6 +51,24 @@ class UploadWorker(
                 workDataOf(RESULT_ERROR to "Nicht angemeldet")
             )
 
+        val otherWork = if (tags.contains(SyncScheduler.MANUAL_WORK)) {
+            SyncScheduler.PERIODIC_WORK
+        } else {
+            SyncScheduler.MANUAL_WORK
+        }
+        val otherRunning = WorkManager.getInstance(ctx)
+            .getWorkInfosForUniqueWork(otherWork)
+            .get()
+            .any { it.state == WorkInfo.State.RUNNING }
+
+        if (otherRunning) {
+            // Periodischer und manueller Sync duerfen nicht gleichzeitig laufen,
+            // das verdoppelt sonst unnoetig die Serveranfragen (siehe README).
+            return@withContext Result.success(
+                workDataOf(RESULT_UPLOADED to 0, RESULT_FAILED to 0)
+            )
+        }
+
         val client = WebDavClient(creds.baseUrl, creds.user, creds.password)
 
         client.checkLogin().onFailure {
@@ -70,6 +92,7 @@ class UploadWorker(
 
         setForeground(buildForegroundInfo(0, pending.size))
 
+        val deviceId = DeviceId.forPath(ctx)
         val knownDirs = mutableSetOf<String>()
         var uploaded = 0
         var failed = 0
@@ -77,7 +100,9 @@ class UploadWorker(
         pending.forEachIndexed { index, item ->
             if (isStopped) return@withContext Result.retry()
 
-            val folder = "${creds.user}/DCIM/" + monthFormat.format(Date(item.dateAddedSeconds * 1000L))
+            val bucket = PathSegment.sanitize(item.bucket, "Sonstige")
+            val folder = "${creds.user}/$bucket/$deviceId/" +
+                monthFormat.format(Date(item.dateAddedSeconds * 1000L))
             val remotePath = "$folder/${item.displayName}"
 
             val ok = runCatching {

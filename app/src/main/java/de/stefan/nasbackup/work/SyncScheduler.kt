@@ -27,6 +27,7 @@ object SyncScheduler {
     fun schedulePeriodic(ctx: Context) {
         val request = PeriodicWorkRequestBuilder<UploadWorker>(6, TimeUnit.HOURS)
             .setConstraints(constraints)
+            .addTag(PERIODIC_WORK)
             .build()
 
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(
@@ -40,6 +41,7 @@ object SyncScheduler {
     fun runNow(ctx: Context) {
         val request = OneTimeWorkRequestBuilder<UploadWorker>()
             .setConstraints(constraints)
+            .addTag(MANUAL_WORK)
             .build()
 
         WorkManager.getInstance(ctx).enqueueUniqueWork(
