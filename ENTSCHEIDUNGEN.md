@@ -24,3 +24,12 @@
   Server-Admin selbst -- echte Ende-zu-Ende-Verschluesselung ist bewusst
   vertagt (siehe README, "Bekannte Grenzen"), aber als spaetere Option
   eingeplant, sobald auch Nicht-Familie (Freunde) mitnutzen soll.
+- Kein echter bidirektionaler Sync (Geraet <-> Server bleiben nicht
+  automatisch im gleichen Zustand). Stattdessen drei bewusst getrennte,
+  manuelle Bausteine: Backup (Geraet -> Server, automatisch), Cloud-Galerie
+  zum temporaeren Ansehen/Download einzelner Dateien vom Server, und
+  "Platz freigeben" zum Loeschen bereits gesicherter Originale auf dem
+  Geraet. Grund: wuerde der Server geloeschte Dateien automatisch wieder
+  aufs Geraet schieben, waere das eigentliche Ziel von "Platz freigeben"
+  (Speicherplatz sparen) direkt hinfaellig. Vorbild ist das Verhalten von
+  Google Fotos, nicht ein Datei-Sync-Tool.
