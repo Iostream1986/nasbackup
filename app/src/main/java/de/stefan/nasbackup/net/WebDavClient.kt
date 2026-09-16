@@ -10,16 +10,38 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import okio.source
 import org.json.JSONObject
+import org.xml.sax.InputSource
+import java.io.File
 import java.io.InputStream
+import java.io.OutputStream
+import java.io.StringReader
+import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import javax.xml.parsers.DocumentBuilderFactory
+
+/** Eine Datei aus einem PROPFIND-Listing (siehe [WebDavClient.listRecursive]). */
+data class RemoteMediaItem(
+    /** Absolute URL, direkt fuer GET/Thumbnails nutzbar. */
+    val href: String,
+    /** Dekodierter Pfad relativ zur Server-Wurzel, z.B. "user/DCIM/Pixel-8-abc123/2026-09/IMG.jpg". */
+    val relativePath: String,
+    val name: String,
+    val mimeType: String?,
+    val size: Long,
+    val lastModified: Long
+)
 
 /**
- * Minimaler WebDAV-Client. Nur vier Methoden werden gebraucht:
+ * Minimaler WebDAV-Client. Kern-Methoden:
  *
  *   MKCOL     - Ordner anlegen (auch fuer den Login-Check genutzt, siehe unten)
  *   HEAD      - pruefen ob eine Datei schon existiert
  *   PUT       - hochladen
+ *   PROPFIND  - Ordner rekursiv auflisten
+ *   GET       - herunterladen
  */
 class WebDavClient(
     baseUrl: String,
@@ -138,6 +160,89 @@ class WebDavClient(
             }
         }
     }
+
+    /**
+     * Listet einen Ordner rekursiv (PROPFIND, Depth: infinity) und liefert
+     * alle enthaltenen Dateien (keine Ordner) ueber alle Ebenen hinweg --
+     * bei "<konto>/DCIM" also automatisch ueber alle Geraete-Unterordner
+     * hinweg, nicht nur das aktuelle Geraet.
+     */
+    fun listRecursive(path: String): Result<List<RemoteMediaItem>> = runCatching {
+        val body = """<?xml version="1.0" encoding="utf-8" ?>
+            |<propfind xmlns="DAV:"><allprop/></propfind>
+        """.trimMargin().toRequestBody("application/xml; charset=utf-8".toMediaType())
+
+        val request = builder(path)
+            .method("PROPFIND", body)
+            .header("Depth", "infinity")
+            .build()
+
+        val xml = http.newCall(request).execute().use { response ->
+            if (response.code != 207) throw Exception("PROPFIND $path -> ${response.code}")
+            response.body?.string() ?: throw Exception("Leere Antwort")
+        }
+
+        parseMultistatus(xml)
+    }
+
+    /** Laedt eine Datei in eine lokale Datei herunter. */
+    fun download(path: String, target: File): Result<Unit> = runCatching {
+        target.outputStream().use { out -> downloadTo(path, out).getOrThrow() }
+    }
+
+    /** Wie [download], schreibt aber in einen beliebigen Sink (z.B. einen MediaStore-Eintrag). */
+    fun downloadTo(path: String, sink: OutputStream): Result<Unit> = runCatching {
+        val request = builder(path).get().build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw Exception("GET $path -> ${response.code}")
+            val responseBody = response.body ?: throw Exception("Leere Antwort")
+            responseBody.byteStream().copyTo(sink)
+        }
+    }
+
+    private fun parseMultistatus(xml: String): List<RemoteMediaItem> {
+        val origin = URI(base).let { "${it.scheme}://${it.authority}" }
+
+        val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+        val doc = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
+        val responses = doc.getElementsByTagNameNS("DAV:", "response")
+
+        return (0 until responses.length).mapNotNull { i ->
+            val node = responses.item(i)
+            val href = node.getElementsByTagNameNS("DAV:", "href").item(0)?.textContent
+                ?: return@mapNotNull null
+
+            val isCollection = node.getElementsByTagNameNS("DAV:", "collection").length > 0
+            if (isCollection) return@mapNotNull null
+
+            val size = node.getElementsByTagNameNS("DAV:", "getcontentlength")
+                .item(0)?.textContent?.toLongOrNull() ?: 0L
+            val mimeType = node.getElementsByTagNameNS("DAV:", "getcontenttype")
+                .item(0)?.textContent
+            val lastModified = node.getElementsByTagNameNS("DAV:", "getlastmodified")
+                .item(0)?.textContent?.let {
+                    runCatching {
+                        java.time.ZonedDateTime.parse(it, DateTimeFormatter.RFC_1123_DATE_TIME)
+                            .toInstant().toEpochMilli()
+                    }.getOrNull()
+                } ?: 0L
+
+            val decodedPath = URLDecoder.decode(href, "UTF-8").trim('/')
+            val name = decodedPath.substringAfterLast('/')
+
+            RemoteMediaItem(
+                href = if (href.startsWith("http")) href else "$origin$href",
+                relativePath = decodedPath,
+                name = name,
+                mimeType = mimeType,
+                size = size,
+                lastModified = lastModified
+            )
+        }
+    }
+
+    private fun org.w3c.dom.Node.getElementsByTagNameNS(ns: String, name: String): org.w3c.dom.NodeList =
+        (this as org.w3c.dom.Element).getElementsByTagNameNS(ns, name)
 
     /**
      * Streamt direkt aus dem ContentResolver zum Server, ohne die Datei

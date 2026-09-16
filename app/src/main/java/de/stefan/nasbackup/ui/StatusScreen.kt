@@ -66,6 +66,7 @@ fun StatusScreen(
     var pickingFolders by remember { mutableStateOf(false) }
     var changingPassword by remember { mutableStateOf(false) }
     var showingGallery by remember { mutableStateOf(false) }
+    var showingCloudGallery by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -102,6 +103,11 @@ fun StatusScreen(
 
     if (showingGallery) {
         GalleryScreen(onDone = { showingGallery = false })
+        return
+    }
+
+    if (showingCloudGallery) {
+        CloudGalleryScreen(creds = creds, onDone = { showingCloudGallery = false })
         return
     }
 
@@ -150,6 +156,10 @@ fun StatusScreen(
             onClick = { showingGallery = true },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Galerie ansehen") }
+        OutlinedButton(
+            onClick = { showingCloudGallery = true },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Cloud-Galerie ansehen (alle Geräte)") }
 
         Text(
             if (selectedFolders.isEmpty()) "Ordner: keine ausgewählt – es wird nichts gesichert"
