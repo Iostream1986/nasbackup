@@ -8,12 +8,19 @@ Server sichert. Ersatz fuer Google Fotos, ohne fremde Cloud.
 - Anmeldung direkt am WebDAV-Server (Server-URL, E-Mail, Passwort)
 - Zugangsdaten verschluesselt im Android Keystore
 - Automatischer Upload alle 6 Stunden, nur im WLAN, nur bei ausreichendem Akku
-- Ablage nach Monat und Konto: `<E-Mail>/DCIM/2026-09/IMG_1234.jpg`
+- Ablage nach Konto, Medien-Ordner, Geraet und Monat:
+  `<E-Mail>/<Bucket>/<Geraet>/2026-09/IMG_1234.jpg`
 - Nutzer-Isolation server-seitig: jedes Konto sieht per WebDAV ausschliesslich
   seinen eigenen Ordner (auch der eigene Root-Pfad ist gesperrt), siehe
   `server/serve.py` (`IsolatingHtpasswdDC`)
 - Ueberspringt Dateien, die schon oben liegen
+- Periodischer und manueller Sync schliessen sich gegenseitig aus (kein
+  doppelter Lauf mehr, siehe ENTSCHEIDUNGEN.md)
 - Ein einzelner Fehler stoppt den Lauf nicht
+- Cloud-Galerie: geraeteuebergreifende Ansicht aller gesicherten Fotos/Videos
+  vom Server, mit dauerhaftem Download einzelner Dateien in die Geraete-Galerie
+- "Platz freigeben": loescht auf dem Geraet gezielt nur Originale, die laut
+  Upload-Log schon auf dem Server liegen (mit doppelter Bestaetigung)
 
 ## Vor dem ersten Build anpassen
 
@@ -40,17 +47,18 @@ Installieren:
 
 ## Bekannte Grenzen
 
-- Nur eine Richtung: Geraet zum Server. Kein Download, keine Galerie.
+- Kein echter bidirektionaler Sync: vom Server geladene oder dort geloeschte
+  Dateien wandern nicht automatisch zurueck aufs bzw. vom Geraet. Bewusste
+  Trennung in Backup / Cloud-Galerie / Platz freigeben, siehe ENTSCHEIDUNGEN.md.
 - Das Upload-Log ist eine einfache Liste von IDs. Ab etwa 50.000 Dateien
   gehoert dort eine Room-Datenbank hin.
-- Dateinamen kollidieren, wenn zwei Geraete desselben Kontos im selben Monat
-  eine Datei mit gleichem Namen haben. Loesung spaeter: Geraetenamen in
-  den Pfad.
-- Periodischer (6h-Takt) und manueller ("Jetzt sichern") Sync sind zwei
-  unabhaengige WorkManager-Auftraege und koennen gleichzeitig laufen, falls
-  sie sich zeitlich ueberschneiden -- unschaedlich (kein Datenverlust), aber
-  verdoppelt unnoetig die Serveranfragen. Sollten sich gegenseitig
-  ausschliessen; noch nicht behoben.
 - Volle Ende-zu-Ende-Verschluesselung (auch vor dem Server-Admin selbst)
   ist bewusst nicht Teil des aktuellen Stands, aber als spaetere Option
   vorgesehen (relevant sobald Freunde/nicht-Familie mitnutzen).
+
+  **Vermerk fuer spaeter:** Sobald E2E-Verschluesselung umgesetzt wird, soll
+  sie so dokumentiert/aufgebaut sein, dass sich per KI (z.B. Code-Review durch
+  ein Sprachmodell) moeglichst gut nachvollziehen laesst, *ob* und *wie* sie
+  tatsaechlich greift -- also nachvollziehbare Implementierung statt nur
+  Blackbox-Bibliothek, klare Kommentare/Doku zu Schluesselverwaltung und
+  Verschluesselungsablauf, damit eine KI das im Nachhinein pruefen kann.
